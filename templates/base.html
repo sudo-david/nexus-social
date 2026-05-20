@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}NEXUS{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #080b0f;
+      --surface:   #0d1117;
+      --border:    #1a2332;
+      --cyan:      #00e5ff;
+      --green:     #00ff88;
+      --red:       #ff3c5f;
+      --muted:     #3a4a5c;
+      --text:      #c8d8e8;
+      --text-dim:  #5a7080;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+    .glow-cyan  { box-shadow: 0 0 20px rgba(0,229,255,0.15); }
+    .glow-green { box-shadow: 0 0 20px rgba(0,255,136,0.15); }
+    .text-cyan  { color: var(--cyan); }
+    .text-green { color: var(--green); }
+    .text-dim   { color: var(--text-dim); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      transition: border-color .2s;
+    }
+    .card:hover { border-color: var(--muted); }
+    .input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
+    }
+    .btn-primary {
+      background: var(--cyan);
+      color: var(--bg);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: opacity .2s, box-shadow .2s;
+      letter-spacing: .04em;
+    }
+    .btn-primary:hover { opacity: .88; box-shadow: 0 0 18px rgba(0,229,255,0.35); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+    #navbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(8,11,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      height: 60px;
+    }
+    .badge { font-family: 'JetBrains Mono', monospace; font-size: .65rem; padding: 2px 8px; border-radius: 4px; border: 1px solid; }
+    .badge-cyan  { border-color: var(--cyan);  color: var(--cyan); }
+    .badge-green { border-color: var(--green); color: var(--green); }
+
+    /* ── Animaciones ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(.94); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .pop-in { animation: popIn .35s cubic-bezier(.22,1,.36,1) both; }
+
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .cursor::after { content:'█'; color:var(--cyan); animation:blink 1s step-end infinite; font-size:.8em; }
+
+    .card-interactive { transition: border-color .25s, box-shadow .25s, transform .2s; }
+    .card-interactive:hover {
+      border-color: rgba(0,229,255,0.3);
+      box-shadow: 0 0 24px rgba(0,229,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    @keyframes likePop { 0%{transform:scale(1)} 40%{transform:scale(1.45)} 70%{transform:scale(.9)} 100%{transform:scale(1)} }
+    .like-pop { animation: likePop .35s cubic-bezier(.22,1,.36,1); }
+
+    @keyframes slideDown {
+      from { opacity:0; transform:translateY(-8px); max-height:0; }
+      to   { opacity:1; transform:translateY(0);    max-height:600px; }
+    }
+    .slide-down { animation: slideDown .3s ease both; overflow: hidden; }
+
+    .stagger > * { opacity:0; animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
+    .stagger > *:nth-child(1) { animation-delay:.04s; }
+    .stagger > *:nth-child(2) { animation-delay:.08s; }
+    .stagger > *:nth-child(3) { animation-delay:.12s; }
+    .stagger > *:nth-child(4) { animation-delay:.16s; }
+    .stagger > *:nth-child(5) { animation-delay:.20s; }
+    .stagger > *:nth-child(6) { animation-delay:.24s; }
+    .stagger > *:nth-child(n+7){ animation-delay:.28s; }
+
+    .nav-link { position:relative; text-decoration:none; }
+    .nav-link::after { content:''; position:absolute; bottom:-2px; left:0; width:0; height:1px; background:var(--cyan); transition:width .25s ease; }
+    .nav-link:hover::after { width:100%; }
+
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav id="navbar" class="flex items-center justify-between px-6">
+    <a href="/feed" class="flex items-center gap-2 no-underline nav-link">
+      <span class="text-cyan mono font-bold text-lg tracking-widest cursor">NEXUS</span>
+      <span class="badge badge-cyan">v1.0</span>
+    </a>
+    <div id="nav-auth" class="flex items-center gap-3"></div>
+  </nav>
+  <main class="fade-up">
+    {% block content %}{% endblock %}
+  </main>
+  <script>
+    async function checkSession() {
+      try {
+        const r = await fetch('/usuarios/me');
+        if (r.ok) {
+          const u = await r.json();
+          document.getElementById('nav-auth').innerHTML = `
+            <a href="/perfil/${u.id}" class="btn-ghost text-sm nav-link">@${u.nombre}</a>
+            <a href="/mensajes" class="btn-ghost text-sm nav-link">Mensajes</a>
+            <button onclick="logout()" class="btn-ghost text-sm" style="color:var(--red);border-color:var(--red)">Salir</button>
+          `;
+        } else {
+          document.getElementById('nav-auth').innerHTML = `
+            <a href="/login" class="btn-ghost text-sm">Iniciar sesión</a>
+            <a href="/registro" class="btn-primary text-sm">Registrarse</a>
+          `;
+        }
+      } catch(e) {}
+    }
+    async function logout() {
+      await fetch('/auth/logout', { method:'POST' });
+      window.location.href = '/login';
+    }
+    checkSession();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

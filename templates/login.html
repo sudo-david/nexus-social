@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Login — NEXUS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-16">
+  <div class="w-full max-w-sm">
+
+    <!-- Header -->
+    <div class="mb-8 text-center">
+      <p class="mono text-xs text-dim mb-2 tracking-widest">// ACCESO AL SISTEMA</p>
+      <h1 class="text-3xl font-extrabold tracking-tight">Iniciar <span class="text-cyan">sesión</span></h1>
+    </div>
+
+    <!-- Form card -->
+    <div class="card p-7 glow-cyan">
+      <div id="error-msg" class="hidden mb-4 p-3 rounded-lg border border-red-500/30 bg-red-500/10 mono text-xs" style="color:var(--red)"></div>
+
+      <div class="flex flex-col gap-4">
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">CORREO</label>
+          <input id="correo" type="email" class="input" placeholder="usuario@nexus.io" />
+        </div>
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">CONTRASEÑA</label>
+          <input id="contrasena" type="password" class="input" placeholder="••••••••" />
+        </div>
+        <button onclick="doLogin()" class="btn-primary w-full mt-2">CONECTAR</button>
+      </div>
+    </div>
+
+    <p class="text-center mono text-xs text-dim mt-5">
+      Sin cuenta? <a href="/registro" class="text-cyan hover:underline">Regístrate aquí</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function doLogin() {
+  const correo    = document.getElementById('correo').value.trim();
+  const contrasena = document.getElementById('contrasena').value;
+  const errEl     = document.getElementById('error-msg');
+
+  errEl.classList.add('hidden');
+
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ correo, contrasena })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    window.location.href = '/feed';
+  } else {
+    errEl.textContent = data.error || 'Error al iniciar sesión';
+    errEl.classList.remove('hidden');
+  }
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+{% endblock %}

@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Feed — NEXUS{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto px-4 py-8">
+
+  <!-- Nueva publicación -->
+  <div class="card p-5 mb-6 card-interactive pop-in">
+    <p class="mono text-xs text-dim mb-3 tracking-wider">// NUEVA TRANSMISIÓN</p>
+    <textarea id="nuevo-contenido" class="input" rows="3" placeholder="¿Qué está pasando en tu red?"></textarea>
+    <div class="flex items-center justify-between mt-3 gap-3">
+      <input id="nuevo-imagen" type="text" class="input" placeholder="URL de imagen (opcional)" />
+      <button onclick="crearPublicacion()" class="btn-primary text-sm whitespace-nowrap">PUBLICAR</button>
+    </div>
+  </div>
+
+  <!-- Buscador -->
+  <div class="card p-4 mb-4 flex gap-3 items-center card-interactive">
+    <input id="buscar-input" type="text" class="input" placeholder="Buscar usuarios..." />
+    <button onclick="buscarUsuarios()" class="btn-ghost text-sm whitespace-nowrap">BUSCAR</button>
+  </div>
+  <div id="buscar-resultados" class="mb-5 flex flex-col gap-2 stagger"></div>
+
+  <!-- Feed -->
+  <div id="feed" class="flex flex-col gap-4 stagger"></div>
+  <p id="feed-empty" class="hidden mono text-xs text-dim text-center mt-10">// SIN PUBLICACIONES AÚN</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let meId = null;
+
+async function init() {
+  const r = await fetch('/usuarios/me');
+  if (!r.ok) return window.location.href = '/login';
+  meId = (await r.json()).id;
+  cargarFeed();
+}
+
+async function cargarFeed() {
+  const feedEl = document.getElementById('feed');
+  feedEl.innerHTML = `<div class="flex justify-center py-8"><div class="spinner"></div></div>`;
+  const r    = await fetch('/publicaciones/');
+  const pubs = await r.json();
+  feedEl.innerHTML = '';
+  if (!pubs.length) { document.getElementById('feed-empty').classList.remove('hidden'); return; }
+  pubs.forEach(p => feedEl.appendChild(renderPost(p)));
+}
+
+function renderPost(p) {
+  const div = document.createElement('div');
+  div.className = 'card card-interactive p-5';
+  div.innerHTML = `
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+           style="background:var(--border);color:var(--cyan)">${(p.nombre||'?')[0].toUpperCase()}</div>
+      <div class="flex-1 min-w-0">
+        <a href="/perfil/${p.usuario_id}" class="font-bold hover:text-cyan transition-colors">${escHTML(p.nombre)} ${escHTML(p.apellido)}</a>
+        <p class="mono text-xs text-dim">${formatDate(p.fecha_publicacion)}</p>
+      </div>
+      ${p.usuario_id === meId ? `<button onclick="eliminarPost(${p.id},this)" class="mono text-xs text-dim hover:text-red-400 transition-colors flex-shrink-0">✕</button>` : ''}
+    </div>
+
+    <p class="text-sm leading-relaxed mb-3" style="color:var(--text)">${escHTML(p.contenido)}</p>
+
+    ${p.imagen_url ? `
+      <div class="rounded-xl overflow-hidden mb-3" style="border:1px solid var(--border)">
+        <img src="${escHTML(p.imagen_url)}"
+             class="w-full h-auto block"
+             style="max-height:480px;object-fit:contain;background:#0a0e13"
+             onerror="this.closest('div').remove()" />
+      </div>` : ''}
+
+    <div class="flex items-center gap-5 mt-2 pt-3" style="border-top:1px solid var(--border)">
+      <button onclick="toggleLike(${p.id}, this)" data-liked="false"
+              class="mono text-xs flex items-center gap-1.5 transition-colors hover:text-cyan select-none"
+              style="color:var(--text-dim)">
+        <span class="like-icon" style="font-size:1rem">♥</span>
+        <span class="like-count">${p.total_likes||0}</span>
+      </button>
+      <button onclick="toggleComentarios(${p.id},this)"
+              class="mono text-xs flex items-center gap-1.5 hover:text-cyan transition-colors"
+              style="color:var(--text-dim)">
+        ◈ <span>${p.total_comentarios||0}</span> comentarios
+      </button>
+    </div>
+    <div id="comments-${p.id}" class="hidden mt-3"></div>
+  `;
+  return div;
+}
+
+async function toggleLike(id, btn) {
+  const liked  = btn.dataset.liked === 'true';
+  const method = liked ? 'DELETE' : 'POST';
+  await fetch(`/publicaciones/${id}/like`, { method });
+  const count = btn.querySelector('.like-count');
+  const icon  = btn.querySelector('.like-icon');
+  count.textContent = parseInt(count.textContent) + (liked ? -1 : 1);
+  btn.dataset.liked  = String(!liked);
+  btn.style.color    = liked ? 'var(--text-dim)' : 'var(--cyan)';
+  // animación pop
+  icon.classList.remove('like-pop');
+  void icon.offsetWidth; // reflow
+  icon.classList.add('like-pop');
+}
+
+async function toggleComentarios(id, btn) {
+  const box = document.getElementById(`comments-${id}`);
+  if (!box.classList.contains('hidden')) {
+    box.classList.add('hidden');
+    return;
+  }
+  box.classList.remove('hidden');
+  await cargarComentarios(id);
+}
+
+async function cargarComentarios(id) {
+  const box = document.getElementById(`comments-${id}`);
+  box.innerHTML = `<div class="flex justify-center py-3"><div class="spinner"></div></div>`;
+  const r  = await fetch(`/publicaciones/${id}/comentarios`);
+  const cs = await r.json();
+  box.className = 'slide-down mt-3';
+  box.innerHTML = `
+    <div class="flex flex-col gap-2 mb-3 stagger">
+      ${cs.map(c => `
+        <div class="flex gap-2 items-start p-2 rounded-lg" style="background:var(--bg)">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center mono text-xs font-bold flex-shrink-0"
+               style="background:var(--border);color:var(--green)">${(c.nombre||'?')[0].toUpperCase()}</div>
+          <div>
+            <span class="font-semibold text-xs text-cyan">${escHTML(c.nombre)}</span>
+            <p class="text-xs mt-0.5" style="color:var(--text)">${escHTML(c.contenido)}</p>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="flex gap-2">
+      <input id="com-input-${id}" type="text" class="input text-xs" placeholder="Escribe un comentario..." />
+      <button onclick="enviarComentario(${id})" class="btn-ghost text-xs whitespace-nowrap">Enviar</button>
+    </div>
+  `;
+  document.getElementById(`com-input-${id}`)
+    .addEventListener('keydown', e => { if (e.key==='Enter') enviarComentario(id); });
+}
+
+async function enviarComentario(pubId) {
+  const input    = document.getElementById(`com-input-${pubId}`);
+  const contenido = input.value.trim();
+  if (!contenido) return;
+  await fetch(`/publicaciones/${pubId}/comentarios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contenido })
+  });
+  input.value = '';
+  await cargarComentarios(pubId);
+}
+
+async function crearPublicacion() {
+  const contenido  = document.getElementById('nuevo-contenido').value.trim();
+  const imagen_url = document.getElementById('nuevo-imagen').value.trim();
+  if (!contenido) return;
+  const btn = document.querySelector('[onclick="crearPublicacion()"]');
+  btn.disabled = true; btn.textContent = '...';
+  await fetch('/publicaciones/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contenido, imagen_url: imagen_url || null })
+  });
+  document.getElementById('nuevo-contenido').value = '';
+  document.getElementById('nuevo-imagen').value    = '';
+  btn.disabled = false; btn.textContent = 'PUBLICAR';
+  cargarFeed();
+}
+
+async function eliminarPost(id, btn) {
+  await fetch(`/publicaciones/${id}`, { method: 'DELETE' });
+  const card = btn.closest('.card');
+  card.style.transition = 'opacity .3s, transform .3s';
+  card.style.opacity    = '0';
+  card.style.transform  = 'scale(.97)';
+  setTimeout(() => card.remove(), 300);
+}
+
+async function buscarUsuarios() {
+  const q = document.getElementById('buscar-input').value.trim();
+  if (!q) return;
+  const r   = await fetch(`/usuarios/buscar?q=${encodeURIComponent(q)}`);
+  const res = await r.json();
+  const box = document.getElementById('buscar-resultados');
+  box.innerHTML = res.map(u => `
+    <div class="card card-interactive p-3 flex items-center justify-between">
+      <a href="/perfil/${u.id}" class="font-semibold hover:text-cyan transition-colors text-sm">${escHTML(u.nombre)} ${escHTML(u.apellido)}</a>
+      <button onclick="enviarSolicitud(${u.id},this)" class="btn-ghost text-xs">+ Agregar</button>
+    </div>`).join('') || '<p class="mono text-xs text-dim">// Sin resultados</p>';
+}
+
+async function enviarSolicitud(id, btn) {
+  const r = await fetch(`/amistades/solicitud/${id}`, { method: 'POST' });
+  btn.textContent = r.ok ? '✓ Enviado' : '✗ Error';
+  btn.disabled = true;
+  if (r.ok) btn.style.color = 'var(--green)';
+}
+
+function formatDate(dt) {
+  return new Date(dt).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' });
+}
+function escHTML(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+{% endblock %}

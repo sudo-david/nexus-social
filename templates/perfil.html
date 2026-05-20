@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Registro — NEXUS{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 py-16">
+  <div class="w-full max-w-md">
+
+    <div class="mb-8 text-center">
+      <p class="mono text-xs text-dim mb-2 tracking-widest">// NUEVO NODO</p>
+      <h1 class="text-3xl font-extrabold tracking-tight">Crear <span class="text-green">cuenta</span></h1>
+    </div>
+
+    <div class="card p-7 glow-green">
+      <div id="error-msg"   class="hidden mb-4 p-3 rounded-lg border border-red-500/30   bg-red-500/10   mono text-xs" style="color:var(--red)"></div>
+      <div id="success-msg" class="hidden mb-4 p-3 rounded-lg border border-green-500/30 bg-green-500/10 mono text-xs" style="color:var(--green)"></div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">NOMBRE</label>
+          <input id="nombre" type="text" class="input" placeholder="Ej: Alex" />
+        </div>
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">APELLIDO</label>
+          <input id="apellido" type="text" class="input" placeholder="Ej: Reyes" />
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <label class="block mono text-xs text-dim mb-1 tracking-wider">CORREO</label>
+        <input id="correo" type="email" class="input" placeholder="tu@nexus.io" />
+      </div>
+
+      <div class="mt-4">
+        <label class="block mono text-xs text-dim mb-1 tracking-wider">CONTRASEÑA</label>
+        <input id="contrasena" type="password" class="input" placeholder="Mínimo 8 caracteres" />
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mt-4">
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">FECHA NACIMIENTO</label>
+          <input id="fecha_nacimiento" type="date" class="input" />
+        </div>
+        <div>
+          <label class="block mono text-xs text-dim mb-1 tracking-wider">UBICACIÓN</label>
+          <input id="ubicacion" type="text" class="input" placeholder="Ciudad, País" />
+        </div>
+      </div>
+
+      <button onclick="doRegistro()" class="btn-primary w-full mt-6" style="background:var(--green)">CREAR CUENTA</button>
+    </div>
+
+    <p class="text-center mono text-xs text-dim mt-5">
+      Ya tienes cuenta? <a href="/login" class="text-cyan hover:underline">Inicia sesión</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function doRegistro() {
+  const errEl = document.getElementById('error-msg');
+  const sucEl = document.getElementById('success-msg');
+  errEl.classList.add('hidden');
+  sucEl.classList.add('hidden');
+
+  const body = {
+    nombre:           document.getElementById('nombre').value.trim(),
+    apellido:         document.getElementById('apellido').value.trim(),
+    correo:           document.getElementById('correo').value.trim(),
+    contrasena:       document.getElementById('contrasena').value,
+    fecha_nacimiento: document.getElementById('fecha_nacimiento').value,
+    ubicacion:        document.getElementById('ubicacion').value.trim(),
+  };
+
+  const res  = await fetch('/auth/registro', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    sucEl.textContent = '¡Cuenta creada! Redirigiendo...';
+    sucEl.classList.remove('hidden');
+    setTimeout(() => window.location.href = '/login', 1500);
+  } else {
+    errEl.textContent = data.error || 'Error al registrarse';
+    errEl.classList.remove('hidden');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Mensajes — NEXUS{% endblock %}
+
+{% block head %}
+<style>
+  #chat-box { height: calc(100vh - 260px); overflow-y: auto; }
+  .msg-me    { align-self: flex-end;  background: rgba(0,229,255,0.12); border-color: rgba(0,229,255,0.25); }
+  .msg-other { align-self: flex-start; background: var(--surface); border-color: var(--border); }
+  .msg       { max-width: 70%; padding: 10px 14px; border-radius: 12px; border: 1px solid; font-size: .875rem; line-height: 1.5; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-6 flex gap-4" style="height:calc(100vh - 60px)">
+
+  <!-- Lista conversaciones -->
+  <div class="card p-4 w-64 flex-shrink-0 flex flex-col gap-2 overflow-y-auto">
+    <p class="mono text-xs text-dim tracking-wider mb-2">// CONVERSACIONES</p>
+    <div id="conv-lista"></div>
+  </div>
+
+  <!-- Chat -->
+  <div class="card flex-1 flex flex-col p-4">
+    <div id="chat-header" class="pb-3 mb-3 mono text-xs text-dim" style="border-bottom:1px solid var(--border)">
+      // SELECCIONA UNA CONVERSACIÓN
+    </div>
+    <div id="chat-box" class="flex-1 flex flex-col gap-3 overflow-y-auto pr-1"></div>
+    <div id="chat-input-box" class="hidden flex gap-3 mt-3 pt-3" style="border-top:1px solid var(--border)">
+      <input id="msg-input" type="text" class="input flex-1" placeholder="Escribe un mensaje..." />
+      <button onclick="enviarMensaje()" class="btn-primary text-sm">ENVIAR</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let meId        = null;
+let contactoActivo = null;
+let pollingTimer   = null;
+
+async function init() {
+  const r = await fetch('/usuarios/me');
+  if (!r.ok) return window.location.href = '/login';
+  const me = await r.json();
+  meId = me.id;
+  await cargarConversaciones();
+
+  // Si viene con ?con=ID abre esa conv de inmediato
+  const params  = new URLSearchParams(window.location.search);
+  const conId   = parseInt(params.get('con'));
+  if (conId) abrirConversacion(conId);
+}
+
+async function cargarConversaciones() {
+  const r    = await fetch('/mensajes/conversaciones');
+  const convs = r.ok ? await r.json() : [];
+  const lista = document.getElementById('conv-lista');
+  lista.innerHTML = convs.length
+    ? convs.map(c => `
+        <button onclick="abrirConversacion(${c.contacto_id})"
+                class="w-full text-left p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center gap-2"
+                style="border:1px solid transparent" id="conv-btn-${c.contacto_id}">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center mono text-xs font-bold flex-shrink-0"
+               style="background:var(--border);color:var(--cyan)">${(c.nombre||'?')[0].toUpperCase()}</div>
+          <div class="overflow-hidden">
+            <p class="text-sm font-semibold truncate">${escHTML(c.nombre)} ${escHTML(c.apellido)}</p>
+            <p class="mono text-xs text-dim truncate">${escHTML(c.ultimo_mensaje||'')}</p>
+          </div>
+        </button>`).join('')
+    : '<p class="mono text-xs text-dim">// Vacío</p>';
+}
+
+async function abrirConversacion(cid) {
+  contactoActivo = cid;
+  clearInterval(pollingTimer);
+
+  // Highlight activo
+  document.querySelectorAll('[id^="conv-btn-"]').forEach(b => b.style.borderColor = 'transparent');
+  const btn = document.getElementById(`conv-btn-${cid}`);
+  if (btn) btn.style.borderColor = 'var(--cyan)';
+
+  // Header
+  const ru = await fetch(`/usuarios/${cid}`);
+  const u  = ru.ok ? await ru.json() : { nombre: 'Usuario', apellido: '' };
+  document.getElementById('chat-header').innerHTML =
+    `// CHAT CON <a href="/perfil/${cid}" class="text-cyan hover:underline">${escHTML(u.nombre)} ${escHTML(u.apellido)}</a>`;
+
+  document.getElementById('chat-input-box').classList.remove('hidden');
+  await cargarMensajes();
+  pollingTimer = setInterval(cargarMensajes, 4000);
+
+  document.getElementById('msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') enviarMensaje();
+  });
+}
+
+async function cargarMensajes() {
+  if (!contactoActivo) return;
+  const r  = await fetch(`/mensajes/${contactoActivo}`);
+  const ms = r.ok ? await r.json() : [];
+  const box = document.getElementById('chat-box');
+  const atBottom = box.scrollHeight - box.scrollTop <= box.clientHeight + 50;
+  box.innerHTML = ms.map(m => `
+    <div class="msg ${m.emisor_id === meId ? 'msg-me' : 'msg-other'}">
+      <p>${escHTML(m.contenido)}</p>
+      <p class="mono text-right mt-1" style="font-size:.6rem;color:var(--text-dim)">${formatTime(m.fecha_envio)}</p>
+    </div>`).join('');
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function enviarMensaje() {
+  const input   = document.getElementById('msg-input');
+  const contenido = input.value.trim();
+  if (!contenido || !contactoActivo) return;
+  input.value = '';
+  await fetch(`/mensajes/${contactoActivo}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contenido })
+  });
+  await cargarMensajes();
+  await cargarConversaciones();
+}
+
+function formatTime(dt) {
+  return new Date(dt).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' });
+}
+function escHTML(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+{% endblock %}
