@@ -5,21 +5,44 @@
 <div class="max-w-2xl mx-auto px-4 py-8">
 
   <!-- Nueva publicación -->
-  <div class="card p-5 mb-6 card-interactive pop-in">
+  <div class="card card-interactive p-5 mb-6 pop-in">
     <p class="mono text-xs text-dim mb-3 tracking-wider">// NUEVA TRANSMISIÓN</p>
-    <textarea id="nuevo-contenido" class="input" rows="3" placeholder="¿Qué está pasando en tu red?"></textarea>
-    <div class="flex items-center justify-between mt-3 gap-3">
-      <input id="nuevo-imagen" type="text" class="input" placeholder="URL de imagen (opcional)" />
-      <button onclick="crearPublicacion()" class="btn-primary text-sm whitespace-nowrap">PUBLICAR</button>
+
+    <!-- Terminal textarea -->
+    <div class="terminal-wrap mb-3" id="wrap-contenido">
+      <span class="terminal-prompt">$</span>
+      <textarea id="nuevo-contenido" class="terminal-textarea" rows="3"
+                placeholder="escribe tu mensaje aqui..."></textarea>
+    </div>
+
+    <!-- URL imagen -->
+    <div class="terminal-wrap mb-3" id="wrap-imagen">
+      <span class="terminal-prompt">~</span>
+      <input id="nuevo-imagen" type="text" class="terminal-input"
+             placeholder="url de imagen (opcional)" />
+    </div>
+
+    <div class="flex justify-end">
+      <button onclick="crearPublicacion()" class="btn-primary text-sm">PUBLICAR</button>
     </div>
   </div>
 
   <!-- Buscador -->
-  <div class="card p-4 mb-4 flex gap-3 items-center card-interactive">
-    <input id="buscar-input" type="text" class="input" placeholder="Buscar usuarios..." />
+  <div class="card card-interactive p-4 mb-4 flex gap-3 items-center">
+    <div class="terminal-wrap flex-1" style="margin:0">
+      <span class="terminal-prompt">?</span>
+      <input id="buscar-input" type="text" class="terminal-input" placeholder="buscar usuarios..." />
+    </div>
     <button onclick="buscarUsuarios()" class="btn-ghost text-sm whitespace-nowrap">BUSCAR</button>
   </div>
   <div id="buscar-resultados" class="mb-5 flex flex-col gap-2 stagger"></div>
+
+  <!-- Separador estilo código -->
+  <div class="flex items-center gap-3 mb-5">
+    <span class="mono text-xs text-dim">// ────────────</span>
+    <span class="badge badge-cyan mono text-xs">FEED</span>
+    <span class="mono text-xs text-dim">────────────</span>
+  </div>
 
   <!-- Feed -->
   <div id="feed" class="flex flex-col gap-4 stagger"></div>
@@ -35,6 +58,11 @@ async function init() {
   const r = await fetch('/usuarios/me');
   if (!r.ok) return window.location.href = '/login';
   meId = (await r.json()).id;
+
+  // Activar contadores de terminal
+  makeTerminal('wrap-contenido', 'nuevo-contenido', 512);
+  makeTerminal('wrap-imagen',    'nuevo-imagen',    300);
+
   cargarFeed();
 }
 
@@ -44,25 +72,42 @@ async function cargarFeed() {
   const r    = await fetch('/publicaciones/');
   const pubs = await r.json();
   feedEl.innerHTML = '';
-  if (!pubs.length) { document.getElementById('feed-empty').classList.remove('hidden'); return; }
-  pubs.forEach(p => feedEl.appendChild(renderPost(p)));
+  if (!pubs.length) {
+    document.getElementById('feed-empty').classList.remove('hidden');
+    return;
+  }
+  pubs.forEach((p, i) => {
+    const card = renderPost(p);
+    card.style.animationDelay = `${i * 0.06}s`;
+    feedEl.appendChild(card);
+  });
 }
 
 function renderPost(p) {
   const div = document.createElement('div');
   div.className = 'card card-interactive p-5';
+  div.style.opacity = '0';
+  div.style.animation = 'fadeUp .4s cubic-bezier(.22,1,.36,1) both';
+
+  // Avatar con color único por usuario
+  const avatarColor = userColor(p.usuario_id);
+  const inicial = (p.nombre||'?')[0].toUpperCase();
+
   div.innerHTML = `
     <div class="flex items-center gap-3 mb-3">
       <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-           style="background:var(--border);color:var(--cyan)">${(p.nombre||'?')[0].toUpperCase()}</div>
+           style="background:${avatarColor}22;color:${avatarColor};border:1px solid ${avatarColor}44">${inicial}</div>
       <div class="flex-1 min-w-0">
         <a href="/perfil/${p.usuario_id}" class="font-bold hover:text-cyan transition-colors">${escHTML(p.nombre)} ${escHTML(p.apellido)}</a>
         <p class="mono text-xs text-dim">${formatDate(p.fecha_publicacion)}</p>
       </div>
-      ${p.usuario_id === meId ? `<button onclick="eliminarPost(${p.id},this)" class="mono text-xs text-dim hover:text-red-400 transition-colors flex-shrink-0">✕</button>` : ''}
+      ${p.usuario_id === meId
+        ? `<button onclick="eliminarPost(${p.id},this)" class="mono text-xs text-dim hover:text-red-400 transition-colors flex-shrink-0">✕</button>`
+        : ''}
     </div>
 
-    <p class="text-sm leading-relaxed mb-3" style="color:var(--text)">${escHTML(p.contenido)}</p>
+    <p class="text-sm leading-relaxed mb-3" style="color:var(--text);font-family:'JetBrains Mono',monospace"
+       id="post-text-${p.id}"></p>
 
     ${p.imagen_url ? `
       <div class="rounded-xl overflow-hidden mb-3" style="border:1px solid var(--border)">
@@ -72,8 +117,8 @@ function renderPost(p) {
              onerror="this.closest('div').remove()" />
       </div>` : ''}
 
-    <div class="flex items-center gap-5 mt-2 pt-3" style="border-top:1px solid var(--border)">
-      <button onclick="toggleLike(${p.id}, this)" data-liked="false"
+    <div class="flex items-center gap-5 pt-3" style="border-top:1px solid var(--border)">
+      <button onclick="toggleLike(${p.id},this)" data-liked="false"
               class="mono text-xs flex items-center gap-1.5 transition-colors hover:text-cyan select-none"
               style="color:var(--text-dim)">
         <span class="like-icon" style="font-size:1rem">♥</span>
@@ -82,35 +127,57 @@ function renderPost(p) {
       <button onclick="toggleComentarios(${p.id},this)"
               class="mono text-xs flex items-center gap-1.5 hover:text-cyan transition-colors"
               style="color:var(--text-dim)">
-        ◈ <span>${p.total_comentarios||0}</span> comentarios
+        ◈ <span class="com-count">${p.total_comentarios||0}</span> comentarios
       </button>
     </div>
     <div id="comments-${p.id}" class="hidden mt-3"></div>
   `;
+
+  // Efecto typing en el texto del post
+  setTimeout(() => typeText(`post-text-${p.id}`, p.contenido), 50);
+
   return div;
+}
+
+/* Typing effect: escribe el texto carácter a carácter */
+function typeText(elId, text, speed=12) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.textContent = '';
+  let i = 0;
+  function next() {
+    if (i >= text.length) return;
+    el.textContent += text[i++];
+    setTimeout(next, speed);
+  }
+  next();
+}
+
+/* Color único por usuario (determinístico) */
+function userColor(id) {
+  const colors = ['#00e5ff','#00ff88','#ffe066','#ff6eb4','#a78bfa','#fb923c','#34d399'];
+  return colors[id % colors.length];
 }
 
 async function toggleLike(id, btn) {
   const liked  = btn.dataset.liked === 'true';
-  const method = liked ? 'DELETE' : 'POST';
-  await fetch(`/publicaciones/${id}/like`, { method });
+  const r = await fetch(`/publicaciones/${id}/like`, { method: liked ? 'DELETE' : 'POST' });
+  if (!r.ok) { log('Error al procesar el like', 'error'); return; }
   const count = btn.querySelector('.like-count');
   const icon  = btn.querySelector('.like-icon');
-  count.textContent = parseInt(count.textContent) + (liked ? -1 : 1);
+  const delta = liked ? -1 : 1;
+  count.textContent  = parseInt(count.textContent) + delta;
   btn.dataset.liked  = String(!liked);
   btn.style.color    = liked ? 'var(--text-dim)' : 'var(--cyan)';
-  // animación pop
   icon.classList.remove('like-pop');
-  void icon.offsetWidth; // reflow
+  void icon.offsetWidth;
   icon.classList.add('like-pop');
+  log(liked ? 'Like eliminado' : 'Like registrado', liked ? 'warn' : 'success', 2500);
 }
 
 async function toggleComentarios(id, btn) {
   const box = document.getElementById(`comments-${id}`);
-  if (!box.classList.contains('hidden')) {
-    box.classList.add('hidden');
-    return;
-  }
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   await cargarComentarios(id);
 }
@@ -121,24 +188,34 @@ async function cargarComentarios(id) {
   const r  = await fetch(`/publicaciones/${id}/comentarios`);
   const cs = await r.json();
   box.className = 'slide-down mt-3';
+
+  const wrapId  = `wrap-com-${id}`;
+  const inputId = `com-input-${id}`;
+
   box.innerHTML = `
-    <div class="flex flex-col gap-2 mb-3 stagger">
+    <div class="flex flex-col gap-2 mb-3">
       ${cs.map(c => `
         <div class="flex gap-2 items-start p-2 rounded-lg" style="background:var(--bg)">
           <div class="w-6 h-6 rounded-full flex items-center justify-center mono text-xs font-bold flex-shrink-0"
-               style="background:var(--border);color:var(--green)">${(c.nombre||'?')[0].toUpperCase()}</div>
+               style="background:${userColor(c.usuario_id)}22;color:${userColor(c.usuario_id)};border:1px solid ${userColor(c.usuario_id)}44">
+            ${(c.nombre||'?')[0].toUpperCase()}
+          </div>
           <div>
-            <span class="font-semibold text-xs text-cyan">${escHTML(c.nombre)}</span>
-            <p class="text-xs mt-0.5" style="color:var(--text)">${escHTML(c.contenido)}</p>
+            <span class="font-semibold text-xs" style="color:${userColor(c.usuario_id)}">${escHTML(c.nombre)}</span>
+            <p class="text-xs mt-0.5 mono" style="color:var(--text)">${escHTML(c.contenido)}</p>
           </div>
         </div>`).join('')}
     </div>
-    <div class="flex gap-2">
-      <input id="com-input-${id}" type="text" class="input text-xs" placeholder="Escribe un comentario..." />
-      <button onclick="enviarComentario(${id})" class="btn-ghost text-xs whitespace-nowrap">Enviar</button>
+    <div class="terminal-wrap" id="${wrapId}">
+      <span class="terminal-prompt">&gt;</span>
+      <input id="${inputId}" type="text" class="terminal-input" placeholder="escribe un comentario..." />
+    </div>
+    <div class="flex justify-end mt-2">
+      <button onclick="enviarComentario(${id})" class="btn-ghost text-xs">Enviar</button>
     </div>
   `;
-  document.getElementById(`com-input-${id}`)
+  makeTerminal(wrapId, inputId, 280);
+  document.getElementById(inputId)
     .addEventListener('keydown', e => { if (e.key==='Enter') enviarComentario(id); });
 }
 
@@ -146,39 +223,61 @@ async function enviarComentario(pubId) {
   const input    = document.getElementById(`com-input-${pubId}`);
   const contenido = input.value.trim();
   if (!contenido) return;
-  await fetch(`/publicaciones/${pubId}/comentarios`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  const r = await fetch(`/publicaciones/${pubId}/comentarios`, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ contenido })
   });
-  input.value = '';
-  await cargarComentarios(pubId);
+  if (r.ok) {
+    input.value = '';
+    log('Comentario publicado', 'success', 2500);
+    // actualizar contador
+    const btn = document.querySelector(`[onclick="toggleComentarios(${pubId},this)"]`);
+    if (btn) {
+      const span = btn.querySelector('.com-count');
+      if (span) span.textContent = parseInt(span.textContent) + 1;
+    }
+    await cargarComentarios(pubId);
+  } else {
+    log('Error al publicar comentario', 'error');
+  }
 }
 
 async function crearPublicacion() {
   const contenido  = document.getElementById('nuevo-contenido').value.trim();
   const imagen_url = document.getElementById('nuevo-imagen').value.trim();
-  if (!contenido) return;
+  if (!contenido) { log('El contenido no puede estar vacío', 'warn'); return; }
+
   const btn = document.querySelector('[onclick="crearPublicacion()"]');
   btn.disabled = true; btn.textContent = '...';
-  await fetch('/publicaciones/', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+
+  const r = await fetch('/publicaciones/', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ contenido, imagen_url: imagen_url || null })
   });
-  document.getElementById('nuevo-contenido').value = '';
-  document.getElementById('nuevo-imagen').value    = '';
+
   btn.disabled = false; btn.textContent = 'PUBLICAR';
-  cargarFeed();
+
+  if (r.ok) {
+    document.getElementById('nuevo-contenido').value = '';
+    document.getElementById('nuevo-imagen').value    = '';
+    log('Transmisión publicada correctamente', 'success');
+    cargarFeed();
+  } else {
+    log('Error al publicar', 'error');
+  }
 }
 
 async function eliminarPost(id, btn) {
-  await fetch(`/publicaciones/${id}`, { method: 'DELETE' });
+  const r = await fetch(`/publicaciones/${id}`, { method:'DELETE' });
+  if (!r.ok) { log('No se pudo eliminar', 'error'); return; }
   const card = btn.closest('.card');
   card.style.transition = 'opacity .3s, transform .3s';
   card.style.opacity    = '0';
   card.style.transform  = 'scale(.97)';
   setTimeout(() => card.remove(), 300);
+  log('Publicación eliminada', 'warn', 2500);
 }
 
 async function buscarUsuarios() {
@@ -187,18 +286,31 @@ async function buscarUsuarios() {
   const r   = await fetch(`/usuarios/buscar?q=${encodeURIComponent(q)}`);
   const res = await r.json();
   const box = document.getElementById('buscar-resultados');
+  if (!res.length) { log('Sin resultados para "' + q + '"', 'warn', 2500); box.innerHTML=''; return; }
   box.innerHTML = res.map(u => `
     <div class="card card-interactive p-3 flex items-center justify-between">
-      <a href="/perfil/${u.id}" class="font-semibold hover:text-cyan transition-colors text-sm">${escHTML(u.nombre)} ${escHTML(u.apellido)}</a>
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center mono text-xs font-bold"
+             style="background:${userColor(u.id)}22;color:${userColor(u.id)};border:1px solid ${userColor(u.id)}44">
+          ${(u.nombre||'?')[0].toUpperCase()}
+        </div>
+        <a href="/perfil/${u.id}" class="font-semibold hover:text-cyan transition-colors text-sm">${escHTML(u.nombre)} ${escHTML(u.apellido)}</a>
+      </div>
       <button onclick="enviarSolicitud(${u.id},this)" class="btn-ghost text-xs">+ Agregar</button>
-    </div>`).join('') || '<p class="mono text-xs text-dim">// Sin resultados</p>';
+    </div>`).join('');
+  log(`${res.length} usuario(s) encontrado(s)`, 'info', 2500);
 }
 
 async function enviarSolicitud(id, btn) {
-  const r = await fetch(`/amistades/solicitud/${id}`, { method: 'POST' });
-  btn.textContent = r.ok ? '✓ Enviado' : '✗ Error';
-  btn.disabled = true;
-  if (r.ok) btn.style.color = 'var(--green)';
+  const r = await fetch(`/amistades/solicitud/${id}`, { method:'POST' });
+  if (r.ok) {
+    btn.textContent = '✓ Enviado';
+    btn.style.color = 'var(--green)';
+    btn.disabled = true;
+    log('Solicitud de amistad enviada', 'success');
+  } else {
+    log('Ya existe una solicitud con este usuario', 'warn');
+  }
 }
 
 function formatDate(dt) {

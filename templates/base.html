@@ -8,15 +8,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg:        #080b0f;
-      --surface:   #0d1117;
-      --border:    #1a2332;
-      --cyan:      #00e5ff;
-      --green:     #00ff88;
-      --red:       #ff3c5f;
-      --muted:     #3a4a5c;
-      --text:      #c8d8e8;
-      --text-dim:  #5a7080;
+      --bg:       #080b0f;
+      --surface:  #0d1117;
+      --border:   #1a2332;
+      --cyan:     #00e5ff;
+      --green:    #00ff88;
+      --red:      #ff3c5f;
+      --yellow:   #ffe066;
+      --muted:    #3a4a5c;
+      --text:     #c8d8e8;
+      --text-dim: #5a7080;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -33,18 +34,85 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
-    .glow-cyan  { box-shadow: 0 0 20px rgba(0,229,255,0.15); }
-    .glow-green { box-shadow: 0 0 20px rgba(0,255,136,0.15); }
     .text-cyan  { color: var(--cyan); }
     .text-green { color: var(--green); }
     .text-dim   { color: var(--text-dim); }
+    .glow-cyan  { box-shadow: 0 0 20px rgba(0,229,255,0.15); }
+    .glow-green { box-shadow: 0 0 20px rgba(0,255,136,0.15); }
+
+    /* Cards */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
       transition: border-color .2s;
     }
-    .card:hover { border-color: var(--muted); }
+    .card-interactive { transition: border-color .25s, box-shadow .25s, transform .2s; }
+    .card-interactive:hover {
+      border-color: rgba(0,229,255,0.3);
+      box-shadow: 0 0 24px rgba(0,229,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    /* ── Terminal input ── */
+    .terminal-wrap {
+      position: relative;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .terminal-wrap:focus-within {
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
+    }
+    .terminal-prompt {
+      position: absolute;
+      left: 12px; top: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+      color: var(--green);
+      pointer-events: none;
+      user-select: none;
+      line-height: 1;
+    }
+    .terminal-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      outline: none;
+      padding: 10px 14px 10px 30px;
+      caret-color: var(--cyan);
+    }
+    .terminal-textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      outline: none;
+      padding: 10px 14px 28px 30px;
+      resize: none;
+      caret-color: var(--cyan);
+      line-height: 1.6;
+    }
+    .char-counter {
+      position: absolute;
+      bottom: 7px; right: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--text-dim);
+      pointer-events: none;
+      transition: color .2s;
+    }
+    .char-counter.warn  { color: var(--yellow); }
+    .char-counter.limit { color: var(--red); }
+
+    /* Plain input (search, url fields) */
     .input {
       width: 100%;
       background: var(--bg);
@@ -56,78 +124,117 @@
       font-size: 0.875rem;
       outline: none;
       transition: border-color .2s, box-shadow .2s;
+      caret-color: var(--cyan);
     }
     .input:focus {
       border-color: var(--cyan);
       box-shadow: 0 0 0 3px rgba(0,229,255,0.08);
     }
+
+    /* Buttons */
     .btn-primary {
-      background: var(--cyan);
-      color: var(--bg);
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      padding: 10px 22px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
+      background: var(--cyan); color: var(--bg);
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      padding: 10px 22px; border-radius: 8px; border: none;
+      cursor: pointer; letter-spacing: .04em;
       transition: opacity .2s, box-shadow .2s;
-      letter-spacing: .04em;
     }
     .btn-primary:hover { opacity: .88; box-shadow: 0 0 18px rgba(0,229,255,0.35); }
     .btn-ghost {
-      background: transparent;
-      color: var(--text-dim);
+      background: transparent; color: var(--text-dim);
       border: 1px solid var(--border);
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      padding: 8px 18px;
-      border-radius: 8px;
-      cursor: pointer;
+      font-family: 'Syne', sans-serif; font-weight: 600;
+      padding: 8px 18px; border-radius: 8px; cursor: pointer;
       transition: border-color .2s, color .2s;
     }
     .btn-ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* Navbar */
     #navbar {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(8,11,15,0.85);
-      backdrop-filter: blur(12px);
+      background: rgba(8,11,15,0.88);
+      backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
       height: 60px;
     }
-    .badge { font-family: 'JetBrains Mono', monospace; font-size: .65rem; padding: 2px 8px; border-radius: 4px; border: 1px solid; }
-    .badge-cyan  { border-color: var(--cyan);  color: var(--cyan); }
-    .badge-green { border-color: var(--green); color: var(--green); }
+    .nav-link { position: relative; text-decoration: none; }
+    .nav-link::after { content:''; position:absolute; bottom:-2px; left:0; width:0; height:1px; background:var(--cyan); transition:width .25s; }
+    .nav-link:hover::after { width:100%; }
 
-    /* ── Animaciones ── */
+    /* Badge */
+    .badge { font-family:'JetBrains Mono',monospace; font-size:.65rem; padding:2px 8px; border-radius:4px; border:1px solid; }
+    .badge-cyan  { border-color:var(--cyan);  color:var(--cyan); }
+    .badge-green { border-color:var(--green); color:var(--green); }
+
+    /* Status bar */
+    #statusbar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 49;
+      height: 26px;
+      background: rgba(0,229,255,0.07);
+      border-top: 1px solid rgba(0,229,255,0.15);
+      display: flex; align-items: center;
+      padding: 0 16px; gap: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem; color: var(--text-dim);
+    }
+    #statusbar span { display: flex; align-items: center; gap: 5px; }
+    #statusbar .dot { width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); }
+
+    /* ── Log notifications ── */
+    #log-container {
+      position: fixed; bottom: 34px; right: 16px; z-index: 100;
+      display: flex; flex-direction: column-reverse; gap: 8px;
+      pointer-events: none;
+    }
+    .log-entry {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      padding: 8px 14px;
+      border-radius: 6px;
+      border-left: 3px solid;
+      background: rgba(13,17,23,0.97);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+      max-width: 320px;
+      animation: logIn .3s cubic-bezier(.22,1,.36,1) both;
+      pointer-events: auto;
+    }
+    .log-entry.info    { border-color: var(--cyan);   color: var(--cyan); }
+    .log-entry.success { border-color: var(--green);  color: var(--green); }
+    .log-entry.error   { border-color: var(--red);    color: var(--red); }
+    .log-entry.warn    { border-color: var(--yellow); color: var(--yellow); }
+    @keyframes logIn {
+      from { opacity:0; transform: translateX(20px); }
+      to   { opacity:1; transform: translateX(0); }
+    }
+    @keyframes logOut {
+      to { opacity:0; transform: translateX(20px); max-height:0; margin:0; padding:0; }
+    }
+
+    /* ── Animaciones generales ── */
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from { opacity:0; transform:translateY(16px); }
+      to   { opacity:1; transform:translateY(0); }
     }
     .fade-up { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
 
     @keyframes popIn {
-      from { opacity: 0; transform: scale(.94); }
-      to   { opacity: 1; transform: scale(1); }
+      from { opacity:0; transform:scale(.94); }
+      to   { opacity:1; transform:scale(1); }
     }
     .pop-in { animation: popIn .35s cubic-bezier(.22,1,.36,1) both; }
 
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
     .cursor::after { content:'█'; color:var(--cyan); animation:blink 1s step-end infinite; font-size:.8em; }
 
-    .card-interactive { transition: border-color .25s, box-shadow .25s, transform .2s; }
-    .card-interactive:hover {
-      border-color: rgba(0,229,255,0.3);
-      box-shadow: 0 0 24px rgba(0,229,255,0.08);
-      transform: translateY(-1px);
-    }
-
     @keyframes likePop { 0%{transform:scale(1)} 40%{transform:scale(1.45)} 70%{transform:scale(.9)} 100%{transform:scale(1)} }
     .like-pop { animation: likePop .35s cubic-bezier(.22,1,.36,1); }
 
     @keyframes slideDown {
       from { opacity:0; transform:translateY(-8px); max-height:0; }
-      to   { opacity:1; transform:translateY(0);    max-height:600px; }
+      to   { opacity:1; transform:translateY(0);    max-height:800px; }
     }
-    .slide-down { animation: slideDown .3s ease both; overflow: hidden; }
+    .slide-down { animation: slideDown .3s ease both; overflow:hidden; }
 
     .stagger > * { opacity:0; animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
     .stagger > *:nth-child(1) { animation-delay:.04s; }
@@ -138,16 +245,23 @@
     .stagger > *:nth-child(6) { animation-delay:.24s; }
     .stagger > *:nth-child(n+7){ animation-delay:.28s; }
 
-    .nav-link { position:relative; text-decoration:none; }
-    .nav-link::after { content:''; position:absolute; bottom:-2px; left:0; width:0; height:1px; background:var(--cyan); transition:width .25s ease; }
-    .nav-link:hover::after { width:100%; }
-
     @keyframes spin { to { transform:rotate(360deg); } }
     .spinner { width:18px; height:18px; border:2px solid var(--border); border-top-color:var(--cyan); border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+
+    /* Typing effect */
+    @keyframes typeChar {
+      from { opacity:0; transform:translateY(4px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .type-char { display:inline; animation: typeChar .04s ease both; }
+
+    main { padding-bottom: 34px; }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body>
+
+  <!-- NAVBAR -->
   <nav id="navbar" class="flex items-center justify-between px-6">
     <a href="/feed" class="flex items-center gap-2 no-underline nav-link">
       <span class="text-cyan mono font-bold text-lg tracking-widest cursor">NEXUS</span>
@@ -155,15 +269,38 @@
     </a>
     <div id="nav-auth" class="flex items-center gap-3"></div>
   </nav>
-  <main class="fade-up">
-    {% block content %}{% endblock %}
-  </main>
+
+  <!-- CONTENIDO -->
+  <main class="fade-up">{% block content %}{% endblock %}</main>
+
+  <!-- STATUS BAR -->
+  <div id="statusbar">
+    <span><span class="dot"></span><span id="sb-user">guest</span></span>
+    <span>// <span id="sb-page">NEXUS</span></span>
+    <span style="margin-left:auto" id="sb-time"></span>
+  </div>
+
+  <!-- LOG CONTAINER -->
+  <div id="log-container"></div>
+
   <script>
+    /* ── Status bar ── */
+    function sbTick() {
+      const now = new Date();
+      document.getElementById('sb-time').textContent =
+        now.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    }
+    sbTick(); setInterval(sbTick, 1000);
+    document.getElementById('sb-page').textContent =
+      window.location.pathname.replace('/','').toUpperCase() || 'HOME';
+
+    /* ── Session check ── */
     async function checkSession() {
       try {
         const r = await fetch('/usuarios/me');
         if (r.ok) {
           const u = await r.json();
+          document.getElementById('sb-user').textContent = u.nombre.toLowerCase();
           document.getElementById('nav-auth').innerHTML = `
             <a href="/perfil/${u.id}" class="btn-ghost text-sm nav-link">@${u.nombre}</a>
             <a href="/mensajes" class="btn-ghost text-sm nav-link">Mensajes</a>
@@ -182,7 +319,44 @@
       window.location.href = '/login';
     }
     checkSession();
+
+    /* ── Log notifications ── */
+    function log(msg, type='info', duration=4000) {
+      const container = document.getElementById('log-container');
+      const el = document.createElement('div');
+      el.className = `log-entry ${type}`;
+      const prefix = { info:'[INFO]', success:'[OK]', error:'[ERR]', warn:'[WARN]' }[type] || '[LOG]';
+      el.textContent = `${prefix} ${msg}`;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.animation = 'logOut .3s ease forwards';
+        setTimeout(() => el.remove(), 300);
+      }, duration);
+    }
+    window.log = log;
+
+    /* ── Terminal input helper ── */
+    function makeTerminal(wrapId, fieldId, maxLen) {
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+      const wrap  = document.getElementById(wrapId);
+      // char counter
+      const counter = document.createElement('span');
+      counter.className = 'char-counter mono';
+      const fmt = n => '0x' + n.toString(16).toUpperCase().padStart(4,'0');
+      counter.textContent = `${fmt(0)} / ${fmt(maxLen)}`;
+      wrap.appendChild(counter);
+      field.addEventListener('input', () => {
+        const len = field.value.length;
+        counter.textContent = `${fmt(len)} / ${fmt(maxLen)}`;
+        counter.className = 'char-counter mono' +
+          (len > maxLen * .9 ? ' limit' : len > maxLen * .75 ? ' warn' : '');
+        if (len > maxLen) field.value = field.value.slice(0, maxLen);
+      });
+    }
+    window.makeTerminal = makeTerminal;
   </script>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>
