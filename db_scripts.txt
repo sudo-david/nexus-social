@@ -1,0 +1,111 @@
+
+CREATE DATABASE IF NOT EXISTS red_social
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+USE red_social;
+
+-- ------------------------------------------------------------
+-- USUARIOS
+-- ------------------------------------------------------------
+CREATE TABLE usuarios (
+    id               INT            NOT NULL AUTO_INCREMENT,
+    nombre           VARCHAR(100)   NOT NULL,
+    apellido         VARCHAR(100)   NOT NULL,
+    correo           VARCHAR(150)   NOT NULL UNIQUE,
+    contrasena       VARCHAR(255)   NOT NULL,          -- guardar hash, nunca texto plano
+    fecha_nacimiento DATE           NOT NULL,
+    ubicacion        VARCHAR(150),
+    foto_perfil      VARCHAR(300),                     -- URL o ruta de la imagen
+    fecha_registro   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+
+-- ------------------------------------------------------------
+-- PUBLICACIONES
+-- ------------------------------------------------------------
+CREATE TABLE publicaciones (
+    id                 INT          NOT NULL AUTO_INCREMENT,
+    usuario_id         INT          NOT NULL,
+    contenido          TEXT         NOT NULL,
+    imagen_url         VARCHAR(300),                   -- opcional: adjunto de imagen
+    fecha_publicacion  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_pub_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- COMENTARIOS
+-- ------------------------------------------------------------
+CREATE TABLE comentarios (
+    id                INT          NOT NULL AUTO_INCREMENT,
+    publicacion_id    INT          NOT NULL,
+    usuario_id        INT          NOT NULL,
+    contenido         TEXT         NOT NULL,
+    fecha_publicacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_com_publicacion
+        FOREIGN KEY (publicacion_id) REFERENCES publicaciones(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_com_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- ME_GUSTA
+-- ------------------------------------------------------------
+CREATE TABLE me_gusta (
+    id             INT       NOT NULL AUTO_INCREMENT,
+    usuario_id     INT       NOT NULL,
+    publicacion_id INT       NOT NULL,
+    fecha_like     DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_like (usuario_id, publicacion_id),   -- un like por usuario por publicación
+    CONSTRAINT fk_like_usuario
+        FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_like_publicacion
+        FOREIGN KEY (publicacion_id) REFERENCES publicaciones(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- AMISTADES
+-- ------------------------------------------------------------
+CREATE TABLE amistades (
+    id           INT          NOT NULL AUTO_INCREMENT,
+    usuario1_id  INT          NOT NULL,
+    usuario2_id  INT          NOT NULL,
+    estado       ENUM('pendiente', 'aceptada', 'bloqueada')
+                              NOT NULL DEFAULT 'pendiente',
+    fecha_inicio DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_amistad (usuario1_id, usuario2_id),  -- evita duplicados
+    CONSTRAINT fk_amis_usuario1
+        FOREIGN KEY (usuario1_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_amis_usuario2
+        FOREIGN KEY (usuario2_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ------------------------------------------------------------
+-- MENSAJES  (mensajes directos entre usuarios)
+-- ------------------------------------------------------------
+CREATE TABLE mensajes (
+    id           INT       NOT NULL AUTO_INCREMENT,
+    emisor_id    INT       NOT NULL,
+    receptor_id  INT       NOT NULL,
+    contenido    TEXT      NOT NULL,
+    fecha_envio  DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_msg_emisor
+        FOREIGN KEY (emisor_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_msg_receptor
+        FOREIGN KEY (receptor_id) REFERENCES usuarios(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
